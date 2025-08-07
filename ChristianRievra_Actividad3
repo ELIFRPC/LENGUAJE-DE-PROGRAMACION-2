@@ -1,0 +1,167 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+namespace umicop
+{
+    public partial class Form1 : Form
+    {
+        private SqlConnection connection;
+        private SqlDataAdapter adapterEmpleados;
+        private SqlDataAdapter adapterPuestos;
+        private SqlDataAdapter adapterCentros;
+        private DataSet dataSet;
+        private SqlDataAdapter adapterDirectivos;
+
+        public Form1()
+        {
+            InitializeComponent();
+
+            string connectionString = ConfigurationManager.ConnectionStrings["umicop.Properties.Settings.UnicopConnectionString"].ConnectionString;
+            connection = new SqlConnection(connectionString);
+        }
+
+        private void CargarEmpleadosEnGrid()
+        {
+            adapterEmpleados = new SqlDataAdapter("SELECT * FROM Empleados", connection);
+            DataTable dtEmpleados = new DataTable();
+            adapterEmpleados.Fill(dtEmpleados);
+            dataGridView1.DataSource = dtEmpleados;
+        }
+
+        private void CargarDirectivosEnGrid()
+        {
+            try
+            {
+                adapterDirectivos = new SqlDataAdapter("SELECT Num_empleado, Num_de_centro, prestaciones FROM Directivos", connection);
+                DataTable dtDirectivos = new DataTable();
+                adapterDirectivos.Fill(dtDirectivos);
+                dataGridView2.DataSource = dtDirectivos;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar Directivos: " + ex.Message);
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            this.puestosTableAdapter.Fill(this.unicopDataSet.Puestos);
+            this.directivosTableAdapter.Fill(this.unicopDataSet.Directivos);
+            try
+            {
+                dataSet = new DataSet();
+                connection.Open();
+
+                adapterPuestos = new SqlDataAdapter("SELECT Num_puesto, puesto FROM Puestos", connection);
+                adapterPuestos.Fill(dataSet, "Puestos");
+                comboBox1.DataSource = dataSet.Tables["Puestos"];
+                comboBox1.DisplayMember = "puesto";
+                comboBox1.ValueMember = "Num_puesto";
+
+                adapterCentros = new SqlDataAdapter("SELECT Num_centro, Nombre_de_centro FROM centro_de_trabajo", connection);
+                adapterCentros.Fill(dataSet, "Centro_de_trabajo");
+                comboBox2.DataSource = dataSet.Tables["Centro_de_trabajo"];
+                comboBox2.DisplayMember = "Nombre_de_centro";
+                comboBox2.ValueMember = "Num_centro";
+
+                CargarEmpleadosEnGrid();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar datos iniciales: " + ex.Message);
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                connection.Open();
+
+                string sentenciaEmpleado = "INSERT INTO Empleados (Nombre, Apellido_Paterno, Apellido_Materno, Fecha_de_Nacimiento, Num_Puesto, Num_Centro_trabajo) VALUES (@Nombre, @APPAT, @APMAT, @FECHANAC, @Num_ElPuesto, @Num_ElCentro); SELECT SCOPE_IDENTITY();";
+
+                SqlCommand ejecutarEmpleado = new SqlCommand(sentenciaEmpleado, connection);
+                ejecutarEmpleado.Parameters.AddWithValue("@Nombre", textBox1.Text);
+                ejecutarEmpleado.Parameters.AddWithValue("@APPAT", textBox2.Text);
+                ejecutarEmpleado.Parameters.AddWithValue("@APMAT", textBox3.Text);
+                ejecutarEmpleado.Parameters.AddWithValue("@FECHANAC", dateTimePicker1.Value);
+                ejecutarEmpleado.Parameters.AddWithValue("@Num_ElPuesto", comboBox1.SelectedValue.ToString());
+                ejecutarEmpleado.Parameters.AddWithValue("@Num_ElCentro", comboBox2.SelectedValue.ToString());
+
+                int nuevoNumEmpleado = Convert.ToInt32(ejecutarEmpleado.ExecuteScalar());
+
+                if (checkBox1.Checked)
+                {
+                    MessageBox.Show("Se intentará insertar en Directivos.");
+
+                    string sentenciaDirectivo = "INSERT INTO Directivos (Num_empleado, Num_de_centro, prestaciones) VALUES (@Num_empleado, @Num_de_centro_directivo, @Prestaciones)";
+                    SqlCommand ejecutarDirectivo = new SqlCommand(sentenciaDirectivo, connection);
+
+                    ejecutarDirectivo.Parameters.AddWithValue("@Num_empleado", nuevoNumEmpleado);
+                    ejecutarDirectivo.Parameters.AddWithValue("@Num_de_centro_directivo", comboBox2.SelectedValue.ToString());
+                    ejecutarDirectivo.Parameters.AddWithValue("@Prestaciones", textBoxPrestaciones.Text);
+
+                    ejecutarDirectivo.ExecuteNonQuery();
+                }
+
+                MessageBox.Show("Empleado guardado correctamente.");
+
+                CargarEmpleadosEnGrid();
+                CargarDirectivosEnGrid(); 
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al guardar el empleado o directivo: " + ex.Message);
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+        }
+
+        // Este es un evento de click de una etiqueta que no hace nada.
+        private void label1_Click(object sender, EventArgs e)
+        {
+            // Este evento puede ser ignorado o eliminado
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+
+            if (checkBox1.Checked)
+            {
+
+                textBoxPrestaciones.Enabled = true;
+            }
+            else
+            {
+                textBoxPrestaciones.Enabled = false;
+                textBoxPrestaciones.Text = string.Empty;
+            }
+        }
+
+        private void dataGridView3_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+    }
+}
