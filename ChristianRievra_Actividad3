@@ -138,10 +138,8 @@ namespace umicop
             }
         }
 
-        // Este es un evento de click de una etiqueta que no hace nada.
         private void label1_Click(object sender, EventArgs e)
         {
-            // Este evento puede ser ignorado o eliminado
         }
 
         private void checkBox1_CheckedChanged(object sender, EventArgs e)
